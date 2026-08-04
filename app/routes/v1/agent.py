@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.models.request import AgentRequest
-from app.services.agent_service import agent_service
+from app.services.agent_service import AgentService
+from app.dependencies.services import get_agent_service
 
 
 
@@ -14,10 +15,11 @@ router = APIRouter(
 
 @router.post("/agent")
 def run_agent(
-    request: AgentRequest
+    request: AgentRequest,
+    service: AgentService = Depends(get_agent_service)
 ):
 
-    result = agent_service.run(
+    result = service.run(
         request.message
     )
 
