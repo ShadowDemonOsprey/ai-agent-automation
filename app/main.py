@@ -15,17 +15,15 @@ from fastapi.responses import JSONResponse
 from app.routes.v1.agent import router
 from app.middleware import log_requests
 from app.models.error import ErrorResponse
-
-
+from app.docs.api_docs import API_DESCRIPTION, TAGS_METADATA
 
 # Create FastAPI application.
 app = FastAPI(
     title="AI Agent Automation API",
-    description="Production-ready AI agent system",
-    version="1.0.0"
+    description=API_DESCRIPTION,
+    version="1.0.0",
+    openapi_tags=TAGS_METADATA
 )
-
-
 
 # Register request logging middleware.
 @app.middleware("http")
