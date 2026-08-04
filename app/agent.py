@@ -48,7 +48,7 @@ from app.memory import memory
 from app.tools import TOOLS
 from app.planner import planner
 from app.models.agent_state import AgentState
-
+from app.logger import logger
 
 
 class AIAgent:
@@ -96,10 +96,13 @@ class AIAgent:
             return self.tools[tool_name](argument)
 
 
+        logger.error(
+            f"Tool not found: {tool_name}"
+        )
+
         return {
             "error": f"Tool {tool_name} not found"
         }
-
 
 
     def run(self, user_input: str):
@@ -122,6 +125,9 @@ class AIAgent:
                 Structured agent response.
         """
 
+        logger.info(
+            f"Received user request: {user_input}"
+        )
 
         # Save user message.
         memory.add_message(
@@ -135,6 +141,9 @@ class AIAgent:
             user_input
         )
 
+        logger.info(
+            f"Planner decision: {plan}"
+        )
 
         # ==================================
         # TOOL EXECUTION PATH
@@ -147,6 +156,9 @@ class AIAgent:
 
             if tool_name == "calculator":
 
+                logger.info(
+                    f"Executing tool: {tool_name}"
+                )
 
                 # Convert natural language into expression.
                 #
@@ -169,6 +181,9 @@ class AIAgent:
                     expression.strip()
                 )
 
+                logger.info(
+                    f"Tool result: {tool_result}"
+                )
 
                 response = (
                     f"I used the {tool_name} tool. "
@@ -225,11 +240,17 @@ class AIAgent:
             Provide a helpful answer.
             """
 
+        logger.info(
+            "Sending request to Ollama LLM"
+        )
 
         response = ollama_client.generate(
             prompt
         )
 
+        logger.info(
+            "LLM response generated successfully"
+        )
 
         # Save AI response.
         memory.add_message(
