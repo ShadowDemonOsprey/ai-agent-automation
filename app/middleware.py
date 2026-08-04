@@ -6,12 +6,21 @@ Tracks:
 - Request path
 - Response status code
 - Processing time
+- Request ID
 """
 
 
+# ============================================================
+# ADDED:
+# uuid generates unique request identifiers.
+# ============================================================
+
 import time
+import uuid
+
 
 from fastapi import Request
+
 
 from app.logger import logger
 
@@ -23,6 +32,9 @@ async def log_requests(
 ):
     """
     Log every incoming API request.
+
+    Creates a unique request ID and attaches
+    it to all related log messages.
 
     Args:
         request (Request):
@@ -37,18 +49,49 @@ async def log_requests(
     """
 
 
+
+    # ========================================================
+    # ADDED:
+    # Generate unique ID for this request.
+    #
+    # Example:
+    # 8f3c2b7e-....
+    #
+    # This allows tracing one request
+    # through multiple services later.
+    # ========================================================
+
+    request_id = str(
+        uuid.uuid4()
+    )
+
+
+
     start_time = time.time()
 
 
+
+    # ========================================================
+    # ADDED:
+    # Attach request_id to logger record.
+    #
+    # logger.py reads this value:
+    # record.request_id
+    # ========================================================
+
     logger.info(
-        f"Incoming request: "
-        f"{request.method} {request.url.path}"
+        "Incoming request",
+        extra={
+            "request_id": request_id
+        }
     )
+
 
 
     response = await call_next(
         request
     )
+
 
 
     process_time = (
@@ -57,12 +100,33 @@ async def log_requests(
     )
 
 
+
+    # ========================================================
+    # CHANGED:
+    # Structured logging instead of string formatting.
+    # ========================================================
+
     logger.info(
-        f"Completed request: "
-        f"{request.method} {request.url.path} "
-        f"Status={response.status_code} "
-        f"Time={process_time:.4f}s"
+        "Completed request",
+        extra={
+            "request_id": request_id
+        }
     )
+
+
+
+    # ========================================================
+    # ADDED:
+    # Return request ID in response headers.
+    #
+    # Useful for:
+    # - debugging
+    # - tracing errors
+    # - production monitoring
+    # ========================================================
+
+    response.headers["X-Request-ID"] = request_id
+
 
 
     return response
