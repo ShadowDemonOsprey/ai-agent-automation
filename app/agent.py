@@ -28,6 +28,7 @@ Current capabilities:
 - Tool calling
 - Agent planning
 - Structured AgentState output
+- Streaming AI responses
 
 
 Current tools:
@@ -51,6 +52,7 @@ from app.models.agent_state import AgentState
 from app.logger import logger
 
 
+
 class AIAgent:
     """
     Main AI agent class.
@@ -61,7 +63,9 @@ class AIAgent:
     - Calling tools
     - Communicating with LLM
     - Managing memory
+    - Streaming responses
     """
+
 
 
     def __init__(self):
@@ -79,20 +83,17 @@ class AIAgent:
         Execute an available tool.
 
         Args:
-            tool_name (str):
+            tool_name:
                 Name of the tool.
 
-            argument (str):
+            argument:
                 Input for the tool.
 
         Returns:
-            dict:
-                Tool execution result.
+            Tool execution result.
         """
 
-
         if tool_name in self.tools:
-
             return self.tools[tool_name](argument)
 
 
@@ -105,49 +106,34 @@ class AIAgent:
         }
 
 
+
     def run(self, user_input: str):
         """
-        Main agent execution function.
+        Normal non-streaming agent execution.
 
-        Steps:
-        1. Save user message.
-        2. Ask planner for decision.
-        3. Execute tool or use LLM.
-        4. Save assistant response.
-        5. Return AgentState object.
-
-        Args:
-            user_input (str):
-                User request.
-
-        Returns:
-            AgentState:
-                Structured agent response.
+        Existing agent pipeline remains unchanged.
         """
 
         logger.info(
             f"Received user request: {user_input}"
         )
 
-        # Save user message.
+
         memory.add_message(
             "user",
             user_input
         )
 
 
-        # Ask planner what action to take.
         plan = planner.decide(
             user_input
         )
+
 
         logger.info(
             f"Planner decision: {plan}"
         )
 
-        # ==================================
-        # TOOL EXECUTION PATH
-        # ==================================
 
         if plan["action"] == "tool":
 
@@ -160,13 +146,6 @@ class AIAgent:
                     f"Executing tool: {tool_name}"
                 )
 
-                # Convert natural language into expression.
-                #
-                # Example:
-                # Calculate 25 times 40
-                #
-                # becomes:
-                # 25 * 40
 
                 expression = (
                     user_input
@@ -181,9 +160,6 @@ class AIAgent:
                     expression.strip()
                 )
 
-                logger.info(
-                    f"Tool result: {tool_result}"
-                )
 
                 response = (
                     f"I used the {tool_name} tool. "
@@ -191,14 +167,12 @@ class AIAgent:
                 )
 
 
-                # Save AI response.
                 memory.add_message(
                     "assistant",
                     response
                 )
 
 
-                # Return structured model.
                 return AgentState(
                     agent=self.name,
                     plan=plan,
@@ -208,11 +182,6 @@ class AIAgent:
                     memory=memory.get_history()
                 )
 
-
-
-        # ==================================
-        # LLM RESPONSE PATH
-        # ==================================
 
 
         history = memory.get_history()
@@ -227,39 +196,29 @@ class AIAgent:
 
 
         prompt = f"""
-            You are an AI business automation assistant.
+        You are an AI business automation assistant.
 
-            Conversation history:
-            {conversation}
+        Conversation history:
+        {conversation}
 
+        User request:
+        {user_input}
 
-            User request:
-            {user_input}
+        Provide a helpful answer.
+        """
 
-
-            Provide a helpful answer.
-            """
-
-        logger.info(
-            "Sending request to Ollama LLM"
-        )
 
         response = ollama_client.generate(
             prompt
         )
 
-        logger.info(
-            "LLM response generated successfully"
-        )
 
-        # Save AI response.
         memory.add_message(
             "assistant",
             response
         )
 
 
-        # Return structured model.
         return AgentState(
             agent=self.name,
             plan=plan,
@@ -269,5 +228,139 @@ class AIAgent:
 
 
 
+    def stream_run(self, user_input: str):
+        """
+        Streaming agent execution.
+
+        This method provides ChatGPT-style responses.
+
+        Flow:
+
+        User
+          ↓
+        Agent
+          ↓
+        Ollama streaming LLM
+          ↓
+        Token chunks
+          ↓
+        API Server Sent Events
+
+
+        Args:
+            user_input:
+                User message.
+
+        Yields:
+            Text chunks from the LLM.
+        """
+
+        logger.info(
+            f"Received streaming request: {user_input}"
+        )
+
+
+        # Store user message before generating response.
+        memory.add_message(
+            "user",
+            user_input
+        )
+
+
+        plan = planner.decide(
+            user_input
+        )
+
+
+        logger.info(
+            f"Streaming planner decision: {plan}"
+        )
+
+
+        # Tool responses are returned as one chunk.
+        if plan["action"] == "tool":
+
+            tool_name = plan["tool"]
+
+
+            if tool_name == "calculator":
+
+                expression = (
+                    user_input
+                    .lower()
+                    .replace("calculate", "")
+                    .replace("times", "*")
+                )
+
+
+                tool_result = self.run_tool(
+                    tool_name,
+                    expression.strip()
+                )
+
+
+                response = (
+                    f"I used the {tool_name} tool. "
+                    f"The result is {tool_result['result']}."
+                )
+
+
+                memory.add_message(
+                    "assistant",
+                    response
+                )
+
+
+                yield response
+                return
+
+
+
+        history = memory.get_history()
+
+
+        conversation = "\n".join(
+            [
+                f"{message['role']}: {message['content']}"
+                for message in history
+            ]
+        )
+
+
+        prompt = f"""
+        You are an AI business automation assistant.
+
+        Conversation history:
+        {conversation}
+
+        User request:
+        {user_input}
+
+        Provide a helpful answer.
+        """
+
+
+        complete_response = ""
+
+
+        for chunk in ollama_client.stream_generate(
+            prompt
+        ):
+
+            complete_response += chunk
+
+            yield chunk
+
+
+
+        # Save complete response after streaming finishes.
+        memory.add_message(
+            "assistant",
+            complete_response
+        )
+
+
+
 # Shared agent instance.
 agent = AIAgent()
+
