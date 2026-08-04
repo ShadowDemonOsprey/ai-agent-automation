@@ -28,7 +28,7 @@ def test_agent_api_endpoint():
 
 
     response = client.post(
-        "/agent",
+        "/api/v1/agent",
         json={
            "message": "Calculate 10 * 10"
         }
