@@ -1,152 +1,50 @@
-"""
-Application configuration module.
-
-Loads environment variables and provides
-centralized project settings.
-
-All application configuration should come
-from this file instead of hardcoding values.
-"""
-
-
-# ============================================================
-# ADDED:
-# Literal is used for strict environment validation.
-#
-# It limits values to a predefined set:
-# - development
-# - production
-# ============================================================
-
-from typing import Literal
-
-
-
-# ============================================================
-# ADDED:
-# Pydantic Settings imports.
-#
-# BaseSettings:
-#   Provides environment variable loading
-#   and type validation.
-#
-# SettingsConfigDict:
-#   Configures .env support.
-# ============================================================
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-
-# ============================================================
-# CHANGED:
-# Replaced the old manual os.getenv() configuration system.
-#
-# Now:
-# - values come from .env automatically
-# - values are type checked
-# - invalid configuration is detected early
-# ============================================================
-
 class Settings(BaseSettings):
     """
-    Global application configuration.
+    Application configuration.
 
-    Configuration sources priority:
-
-    1. Environment variables
-    2. .env file
-    3. Default values below
-
-    This object is imported throughout
-    the application.
+    This class loads environment variables
+    and provides default values for the AI Agent system.
     """
 
+    # Application information
+    APP_NAME: str = "AI Agent Automation Platform"
+    APP_ENV: str = "development"
+    DEBUG: bool = True
 
-
-    # ========================================================
-    # ADDED:
-    # Application metadata
-    # ========================================================
-
-    app_name: str = "AI Agent Automation Platform"
-
-
-
-    # ========================================================
-    # CHANGED:
-    # Environment validation added.
-    #
-    # Allowed values:
-    # - development
-    # - production
-    #
-    # Any other value causes validation failure.
-    # ========================================================
-
-    app_env: Literal[
-        "development",
-        "production"
-    ] = "development"
-
-
-
-    # ========================================================
-    # ADDED:
-    # Debug configuration.
-    #
-    # Used later for:
-    # - development logging
-    # - API debugging
-    # ========================================================
-
-    debug: bool = True
-
-
-
-    # ========================================================
-    # EXISTING FEATURE PRESERVED:
-    # Ollama configuration.
-    #
-    # Previously loaded with:
-    # os.getenv()
-    #
-    # Now managed by Pydantic.
-    # ========================================================
-
+    # Ollama local LLM configuration
     ollama_host: str = "http://localhost:11434"
-
-
     ollama_model: str = "tinyllama"
 
+    # Database connection
+    DATABASE_URL: str = "sqlite+aiosqlite:///./ai_agent.db"
 
 
-    # ========================================================
-    # ADDED:
-    # Pydantic configuration.
-    #
-    # env_file:
-    #   Loads values from .env
-    #
-    # extra="ignore":
-    #   Ignores unrelated environment variables.
-    # ========================================================
-
+    # Pydantic v2 configuration.
+    # Loads values from .env file automatically.
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        case_sensitive=False
     )
 
 
+    # Backward compatibility:
+    # Existing project files use lowercase names.
+    @property
+    def app_name(self):
+        return self.APP_NAME
 
-# ============================================================
-# Existing public configuration object.
-#
-# Other files continue using:
-#
-# from app.core.config import settings
-#
-# No import changes required.
-# ============================================================
+
+    @property
+    def app_env(self):
+        return self.APP_ENV
+
+
+    @property
+    def debug(self):
+        return self.DEBUG
+
 
 settings = Settings()
