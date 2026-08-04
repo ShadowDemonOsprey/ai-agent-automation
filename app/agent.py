@@ -9,7 +9,7 @@ Memory
     ↓
 Planner
     ↓
-Decision:
+Decision
     ├── Tool execution
     │       ↓
     │   Tool result
@@ -27,6 +27,7 @@ Current capabilities:
 - Conversation memory
 - Tool calling
 - Agent planning
+- Structured AgentState output
 
 
 Current tools:
@@ -46,6 +47,7 @@ from app.llm.ollama_client import ollama_client
 from app.memory import memory
 from app.tools import TOOLS
 from app.planner import planner
+from app.models.agent_state import AgentState
 
 
 
@@ -65,10 +67,6 @@ class AIAgent:
     def __init__(self):
         """
         Initialize the AI agent.
-
-        Stores:
-        - Agent name
-        - Available tools
         """
 
         self.name = AGENT_NAME
@@ -82,10 +80,10 @@ class AIAgent:
 
         Args:
             tool_name (str):
-                Name of the tool to execute.
+                Name of the tool.
 
             argument (str):
-                Input sent to the tool.
+                Input for the tool.
 
         Returns:
             dict:
@@ -108,24 +106,24 @@ class AIAgent:
         """
         Main agent execution function.
 
-        Workflow:
-        1. Store user message.
-        2. Ask planner for a decision.
-        3. Execute tool or call LLM.
-        4. Store assistant response.
-        5. Return result.
+        Steps:
+        1. Save user message.
+        2. Ask planner for decision.
+        3. Execute tool or use LLM.
+        4. Save assistant response.
+        5. Return AgentState object.
 
         Args:
             user_input (str):
                 User request.
 
         Returns:
-            dict:
-                Agent response.
+            AgentState:
+                Structured agent response.
         """
 
 
-        # Store user message in memory.
+        # Save user message.
         memory.add_message(
             "user",
             user_input
@@ -138,26 +136,25 @@ class AIAgent:
         )
 
 
-        # ============================
+        # ==================================
         # TOOL EXECUTION PATH
-        # ============================
+        # ==================================
 
         if plan["action"] == "tool":
 
             tool_name = plan["tool"]
 
 
-            # Currently calculator is supported.
             if tool_name == "calculator":
 
 
                 # Convert natural language into expression.
                 #
                 # Example:
-                # "Calculate 25 times 40"
+                # Calculate 25 times 40
                 #
                 # becomes:
-                # "25 * 40"
+                # 25 * 40
 
                 expression = (
                     user_input
@@ -179,27 +176,28 @@ class AIAgent:
                 )
 
 
-                # Store AI response.
+                # Save AI response.
                 memory.add_message(
                     "assistant",
                     response
                 )
 
 
-                return {
-                    "agent": self.name,
-                    "plan": plan,
-                    "tool_used": tool_name,
-                    "tool_result": tool_result,
-                    "response": response,
-                    "memory": memory.get_history()
-                }
+                # Return structured model.
+                return AgentState(
+                    agent=self.name,
+                    plan=plan,
+                    tool_used=tool_name,
+                    tool_result=tool_result,
+                    response=response,
+                    memory=memory.get_history()
+                )
 
 
 
-        # ============================
+        # ==================================
         # LLM RESPONSE PATH
-        # ============================
+        # ==================================
 
 
         history = memory.get_history()
@@ -240,15 +238,15 @@ class AIAgent:
         )
 
 
-        return {
-            "agent": self.name,
-            "plan": plan,
-            "response": response,
-            "memory": memory.get_history()
-        }
+        # Return structured model.
+        return AgentState(
+            agent=self.name,
+            plan=plan,
+            response=response,
+            memory=memory.get_history()
+        )
 
 
 
 # Shared agent instance.
-# The API uses this object.
 agent = AIAgent()

@@ -33,16 +33,13 @@ def test_agent_uses_planner_for_tools():
 
 
     # Check planner decision.
-    assert result["plan"]["action"] == "tool"
-
+    assert result.plan["action"] == "tool"
 
     # Check selected tool.
-    assert result["plan"]["tool"] == "calculator"
-
+    assert result.plan["tool"] == "calculator"
 
     # Check tool execution.
-    assert result["tool_result"]["result"] == 300
-
+    assert result.tool_result["result"] == 300
 
 
 def test_agent_uses_planner_for_llm():
@@ -64,8 +61,7 @@ def test_agent_uses_planner_for_llm():
 
 
     # Planner should choose LLM.
-    assert result["plan"]["action"] == "llm"
-
+    assert result.plan["action"] == "llm"
 
     # Response should exist.
-    assert len(result["response"]) > 0
+    assert len(result.response) > 0

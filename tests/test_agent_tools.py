@@ -35,12 +35,12 @@ def test_agent_calculator_tool():
 
 
     # Check that a tool was used.
-    assert result["tool_used"] == "calculator"
-
+    assert result.tool_used == "calculator"
 
     # Check that the calculator returned the correct value.
-    assert result["tool_result"]["result"] == 1000
-
+    assert result.tool_result["result"] == 1000
 
     # Check that the agent returned a response.
-    assert len(result["response"]) > 0
+    assert len(result.response) > 0
+
+    

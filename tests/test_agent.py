@@ -32,14 +32,12 @@ def test_agent_response():
 
 
     # Check that the result is a dictionary.
-    assert isinstance(response, dict)
+    from app.models.agent_state import AgentState
 
+    assert isinstance(response, AgentState)
 
     # Check that the AI generated a response.
-    assert "response" in response
+    assert response.response is not None
 
-
-    # Check that the generated response is not empty.
-    assert len(response["response"]) > 0
-
-    
+    # Check that response is not empty.
+    assert len(response.response) > 0
