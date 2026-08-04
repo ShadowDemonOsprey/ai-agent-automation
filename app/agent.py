@@ -1,35 +1,44 @@
 """
 AI Agent core module.
 
-This module controls the reasoning workflow of the agent.
+This module controls the AI agent workflow.
 
 Current flow:
+
 User input
     ↓
-AI Agent
+Agent memory
     ↓
-Ollama local LLM
+Prompt with conversation history
     ↓
-Generated response
+Ollama LLM
+    ↓
+AI response
+    ↓
+Store response in memory
+
 
 Future upgrades:
-- Add tools
 - Add RAG retrieval
-- Add memory
+- Add external tools
 - Add planning
 """
 
 
 from app.core.constants import AGENT_NAME
 from app.llm.ollama_client import ollama_client
+from app.memory import memory
+
 
 
 class AIAgent:
     """
     Main AI agent class.
 
-    The agent is responsible for receiving tasks
-    and generating responses using an LLM.
+    Handles:
+    - User requests
+    - Conversation history
+    - LLM communication
     """
 
 
@@ -37,11 +46,11 @@ class AIAgent:
         """
         Initialize the agent.
 
-        Stores the agent name and prepares
-        the connection to the LLM.
+        Stores the agent name.
         """
 
         self.name = AGENT_NAME
+
 
 
     def run(self, user_input: str):
@@ -50,41 +59,64 @@ class AIAgent:
 
         Args:
             user_input (str):
-                The user's question or task.
+                The user's message.
 
         Returns:
             dict:
-                Structured response from the AI agent.
+                Agent response with memory context.
         """
 
 
-        # Create a simple prompt.
-        # Later this will include:
-        # - memory
-        # - retrieved documents
-        # - available tools
+        # Save the user's message first.
+        memory.add_message(
+            "user",
+            user_input
+        )
+
+
+        # Retrieve previous conversation.
+        history = memory.get_history()
+
+
+        # Convert conversation history into text.
+        # This gives the LLM context.
+        conversation = "\n".join(
+            [
+                f"{message['role']}: {message['content']}"
+                for message in history
+            ]
+        )
+
+
         prompt = f"""
             You are an AI business automation assistant.
 
-            User request:
-            {user_input}
+            Conversation history:
+            {conversation}
 
-            Provide a helpful response.
-            """
+            Answer the user's latest request clearly.
+        """
 
 
-        # Send the prompt to the local Ollama model.
+        # Ask Ollama to generate a response.
         response = ollama_client.generate(prompt)
 
 
-        # Return structured data for the API.
+        # Save AI response into memory.
+        memory.add_message(
+            "assistant",
+            response
+        )
+
+
         return {
             "agent": self.name,
             "input": user_input,
-            "response": response
+            "response": response,
+            "memory": memory.get_history()
         }
 
 
-# Create one reusable agent instance.
-agent = AIAgent()
 
+# Create one shared agent instance.
+agent = AIAgent()
