@@ -1,15 +1,8 @@
 """
-Ollama LLM client module.
+Ollama client module.
 
-This file connects our AI agent to a local Ollama model.
-
-Currently:
-- Uses TinyLlama running on your computer.
-- No API key is required.
-- No internet connection is required after the model is downloaded.
-
-Later:
-- We can swap models without changing the agent logic.
+This module provides communication
+between the AI agent and local Ollama LLM.
 """
 
 
@@ -18,32 +11,40 @@ import ollama
 from app.core.config import settings
 
 
+
 class OllamaClient:
     """
-    Handles communication with the local Ollama model.
+    Client wrapper for Ollama.
+
+    Responsible for:
+    - Sending prompts
+    - Receiving model responses
     """
+
 
     def __init__(self):
         """
-        Initialize the Ollama client.
-
-        The model name comes from configuration.
+        Initialize Ollama client.
         """
-        self.model = settings.llm_model or "tinyllama"
+
+        self.host = settings.ollama_host
+        self.model = settings.ollama_model
+
 
 
     def generate(self, prompt: str) -> str:
         """
-        Send a prompt to Ollama and return the response.
+        Generate text using Ollama.
 
         Args:
             prompt (str):
-                The instruction or question sent to the model.
+                User prompt sent to LLM.
 
         Returns:
             str:
-                The generated AI response.
+                Generated response.
         """
+
 
         response = ollama.chat(
             model=self.model,
@@ -55,8 +56,10 @@ class OllamaClient:
             ]
         )
 
+
         return response["message"]["content"]
 
 
-# Create one shared client instance.
+
+# Shared Ollama client instance.
 ollama_client = OllamaClient()
