@@ -2,18 +2,20 @@
 API routes for the AI agent.
 
 This module exposes HTTP endpoints
-that allow users to interact with the agent.
+that allow users to communicate
+with the AI agent.
 """
 
 
 from fastapi import APIRouter
+
 from app.agent import agent
 from app.models.agent_state import AgentState
+from app.models.request import AgentRequest
 
 
 
 # Create API router.
-# The main application imports this router.
 router = APIRouter()
 
 
@@ -22,13 +24,15 @@ router = APIRouter()
     "/agent",
     response_model=AgentState
 )
-def run_agent(message: str):
+def run_agent(
+    request: AgentRequest
+):
     """
     Run the AI agent.
 
     Args:
-        message (str):
-            User input message.
+        request (AgentRequest):
+            Validated user request.
 
     Returns:
         AgentState:
@@ -36,12 +40,13 @@ def run_agent(message: str):
     """
 
 
-    # Execute agent workflow.
+    # Send user message to agent.
     result = agent.run(
-        message
+        request.message
     )
 
 
-    # Return Pydantic model.
-    # FastAPI converts it automatically to JSON.
+    # FastAPI converts this Pydantic
+    # model into JSON automatically.
     return result
+

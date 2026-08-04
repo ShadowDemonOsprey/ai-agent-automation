@@ -29,11 +29,10 @@ def test_agent_api_endpoint():
 
     response = client.post(
         "/agent",
-        params={
-            "message": "Calculate 10 * 10"
+        json={
+           "message": "Calculate 10 * 10"
         }
     )
-
 
     # Check HTTP status code.
     assert response.status_code == 200
