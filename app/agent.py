@@ -7,22 +7,37 @@ User request
     ↓
 Memory
     ↓
-Tool decision
+Planner
     ↓
-Ollama LLM
-    ↓
-Response
+Decision:
+    ├── Tool execution
+    │       ↓
+    │   Tool result
+    │
+    └── LLM reasoning
+            ↓
+        AI response
+
     ↓
 Memory update
 
 
-Current tool:
+Current capabilities:
+- Local LLM with Ollama
+- Conversation memory
+- Tool calling
+- Agent planning
+
+
+Current tools:
 - Calculator
+
 
 Future tools:
 - RAG search
 - File analysis
 - Database access
+- Web search
 """
 
 
@@ -30,6 +45,7 @@ from app.core.constants import AGENT_NAME
 from app.llm.ollama_client import ollama_client
 from app.memory import memory
 from app.tools import TOOLS
+from app.planner import planner
 
 
 
@@ -38,15 +54,21 @@ class AIAgent:
     Main AI agent class.
 
     Responsible for:
-    - Understanding user requests
+    - Receiving user requests
+    - Planning actions
     - Calling tools
-    - Communicating with the LLM
+    - Communicating with LLM
+    - Managing memory
     """
 
 
     def __init__(self):
         """
         Initialize the AI agent.
+
+        Stores:
+        - Agent name
+        - Available tools
         """
 
         self.name = AGENT_NAME
@@ -56,18 +78,18 @@ class AIAgent:
 
     def run_tool(self, tool_name: str, argument: str):
         """
-        Execute a tool.
+        Execute an available tool.
 
         Args:
             tool_name (str):
-                Name of the requested tool.
+                Name of the tool to execute.
 
             argument (str):
-                Input for the tool.
+                Input sent to the tool.
 
         Returns:
             dict:
-                Tool result.
+                Tool execution result.
         """
 
 
@@ -80,52 +102,22 @@ class AIAgent:
             "error": f"Tool {tool_name} not found"
         }
 
-    def detect_tool(self, user_input: str):
-        """
-        Detect whether the user request requires a tool.
 
-        Args:
-            user_input (str):
-                User message.
-
-        Returns:
-            str or None:
-                Tool name if a tool is needed.
-        """
-
-
-        # Convert input to lowercase
-        # so detection is not case-sensitive.
-        text = user_input.lower()
-
-
-        # If the request contains calculation words,
-        # use the calculator tool.
-        if any(
-            word in text
-            for word in [
-                "calculate",
-                "multiply",
-                "times",
-                "+",
-                "-",
-                "*",
-                "/"
-            ]
-        ):
-            return "calculator"
-
-
-        # No tool needed.
-        return None
 
     def run(self, user_input: str):
         """
-        Process a user request.
+        Main agent execution function.
+
+        Workflow:
+        1. Store user message.
+        2. Ask planner for a decision.
+        3. Execute tool or call LLM.
+        4. Store assistant response.
+        5. Return result.
 
         Args:
             user_input (str):
-                User message.
+                User request.
 
         Returns:
             dict:
@@ -133,64 +125,90 @@ class AIAgent:
         """
 
 
+        # Store user message in memory.
         memory.add_message(
             "user",
             user_input
         )
 
-        # Check if the request needs a tool.
-        tool_name = self.detect_tool(user_input)
+
+        # Ask planner what action to take.
+        plan = planner.decide(
+            user_input
+        )
 
 
-        if tool_name == "calculator":
+        # ============================
+        # TOOL EXECUTION PATH
+        # ============================
 
-            # Extract only numbers and operators.
-            # Example:
-            # "Calculate 25 * 40"
-            # becomes:
-            # "25 * 40"
+        if plan["action"] == "tool":
 
-            expression = (
-                user_input
-                .lower()
-                .replace("calculate", "")
-                .replace("times", "*")
-            )
+            tool_name = plan["tool"]
 
 
-            tool_result = self.run_tool(
-                "calculator",
-                expression.strip()
-            )
+            # Currently calculator is supported.
+            if tool_name == "calculator":
 
 
-            response = (
-                f"I used the calculator tool. "
-                f"The result is {tool_result['result']}."
-            )
+                # Convert natural language into expression.
+                #
+                # Example:
+                # "Calculate 25 times 40"
+                #
+                # becomes:
+                # "25 * 40"
+
+                expression = (
+                    user_input
+                    .lower()
+                    .replace("calculate", "")
+                    .replace("times", "*")
+                )
 
 
-            memory.add_message(
-                "assistant",
-                response
-            )
+                tool_result = self.run_tool(
+                    tool_name,
+                    expression.strip()
+                )
 
 
-            return {
-                "agent": self.name,
-                "response": response,
-                "tool_used": "calculator",
-                "tool_result": tool_result,
-                "memory": memory.get_history()
-            }
+                response = (
+                    f"I used the {tool_name} tool. "
+                    f"The result is {tool_result['result']}."
+                )
+
+
+                # Store AI response.
+                memory.add_message(
+                    "assistant",
+                    response
+                )
+
+
+                return {
+                    "agent": self.name,
+                    "plan": plan,
+                    "tool_used": tool_name,
+                    "tool_result": tool_result,
+                    "response": response,
+                    "memory": memory.get_history()
+                }
+
+
+
+        # ============================
+        # LLM RESPONSE PATH
+        # ============================
+
 
         history = memory.get_history()
 
 
         conversation = "\n".join(
             [
-                f"{m['role']}: {m['content']}"
-                for m in history
+                f"{message['role']}: {message['content']}"
+                for message in history
             ]
         )
 
@@ -198,23 +216,24 @@ class AIAgent:
         prompt = f"""
             You are an AI business automation assistant.
 
-            Available tools:
-            - calculator
-
-            Conversation:
+            Conversation history:
             {conversation}
+
 
             User request:
             {user_input}
 
-            If a tool is needed, explain what tool should be used.
-            Otherwise answer normally.
+
+            Provide a helpful answer.
             """
 
 
-        response = ollama_client.generate(prompt)
+        response = ollama_client.generate(
+            prompt
+        )
 
 
+        # Save AI response.
         memory.add_message(
             "assistant",
             response
@@ -223,10 +242,13 @@ class AIAgent:
 
         return {
             "agent": self.name,
+            "plan": plan,
             "response": response,
             "memory": memory.get_history()
         }
 
 
 
+# Shared agent instance.
+# The API uses this object.
 agent = AIAgent()
