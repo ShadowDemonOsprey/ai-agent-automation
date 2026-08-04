@@ -1,33 +1,35 @@
 """
 AI Agent core module.
 
-This module controls the AI agent workflow.
+The agent workflow:
 
-Current flow:
-
-User input
+User request
     ↓
-Agent memory
+Memory
     ↓
-Prompt with conversation history
+Tool decision
     ↓
 Ollama LLM
     ↓
-AI response
+Response
     ↓
-Store response in memory
+Memory update
 
 
-Future upgrades:
-- Add RAG retrieval
-- Add external tools
-- Add planning
+Current tool:
+- Calculator
+
+Future tools:
+- RAG search
+- File analysis
+- Database access
 """
 
 
 from app.core.constants import AGENT_NAME
 from app.llm.ollama_client import ollama_client
 from app.memory import memory
+from app.tools import TOOLS
 
 
 
@@ -35,23 +37,87 @@ class AIAgent:
     """
     Main AI agent class.
 
-    Handles:
-    - User requests
-    - Conversation history
-    - LLM communication
+    Responsible for:
+    - Understanding user requests
+    - Calling tools
+    - Communicating with the LLM
     """
 
 
     def __init__(self):
         """
-        Initialize the agent.
-
-        Stores the agent name.
+        Initialize the AI agent.
         """
 
         self.name = AGENT_NAME
+        self.tools = TOOLS
 
 
+
+    def run_tool(self, tool_name: str, argument: str):
+        """
+        Execute a tool.
+
+        Args:
+            tool_name (str):
+                Name of the requested tool.
+
+            argument (str):
+                Input for the tool.
+
+        Returns:
+            dict:
+                Tool result.
+        """
+
+
+        if tool_name in self.tools:
+
+            return self.tools[tool_name](argument)
+
+
+        return {
+            "error": f"Tool {tool_name} not found"
+        }
+
+    def detect_tool(self, user_input: str):
+        """
+        Detect whether the user request requires a tool.
+
+        Args:
+            user_input (str):
+                User message.
+
+        Returns:
+            str or None:
+                Tool name if a tool is needed.
+        """
+
+
+        # Convert input to lowercase
+        # so detection is not case-sensitive.
+        text = user_input.lower()
+
+
+        # If the request contains calculation words,
+        # use the calculator tool.
+        if any(
+            word in text
+            for word in [
+                "calculate",
+                "multiply",
+                "times",
+                "+",
+                "-",
+                "*",
+                "/"
+            ]
+        ):
+            return "calculator"
+
+
+        # No tool needed.
+        return None
 
     def run(self, user_input: str):
         """
@@ -59,31 +125,72 @@ class AIAgent:
 
         Args:
             user_input (str):
-                The user's message.
+                User message.
 
         Returns:
             dict:
-                Agent response with memory context.
+                Agent response.
         """
 
 
-        # Save the user's message first.
         memory.add_message(
             "user",
             user_input
         )
 
+        # Check if the request needs a tool.
+        tool_name = self.detect_tool(user_input)
 
-        # Retrieve previous conversation.
+
+        if tool_name == "calculator":
+
+            # Extract only numbers and operators.
+            # Example:
+            # "Calculate 25 * 40"
+            # becomes:
+            # "25 * 40"
+
+            expression = (
+                user_input
+                .lower()
+                .replace("calculate", "")
+                .replace("times", "*")
+            )
+
+
+            tool_result = self.run_tool(
+                "calculator",
+                expression.strip()
+            )
+
+
+            response = (
+                f"I used the calculator tool. "
+                f"The result is {tool_result['result']}."
+            )
+
+
+            memory.add_message(
+                "assistant",
+                response
+            )
+
+
+            return {
+                "agent": self.name,
+                "response": response,
+                "tool_used": "calculator",
+                "tool_result": tool_result,
+                "memory": memory.get_history()
+            }
+
         history = memory.get_history()
 
 
-        # Convert conversation history into text.
-        # This gives the LLM context.
         conversation = "\n".join(
             [
-                f"{message['role']}: {message['content']}"
-                for message in history
+                f"{m['role']}: {m['content']}"
+                for m in history
             ]
         )
 
@@ -91,18 +198,23 @@ class AIAgent:
         prompt = f"""
             You are an AI business automation assistant.
 
-            Conversation history:
+            Available tools:
+            - calculator
+
+            Conversation:
             {conversation}
 
-            Answer the user's latest request clearly.
-        """
+            User request:
+            {user_input}
+
+            If a tool is needed, explain what tool should be used.
+            Otherwise answer normally.
+            """
 
 
-        # Ask Ollama to generate a response.
         response = ollama_client.generate(prompt)
 
 
-        # Save AI response into memory.
         memory.add_message(
             "assistant",
             response
@@ -111,12 +223,10 @@ class AIAgent:
 
         return {
             "agent": self.name,
-            "input": user_input,
             "response": response,
             "memory": memory.get_history()
         }
 
 
 
-# Create one shared agent instance.
 agent = AIAgent()
