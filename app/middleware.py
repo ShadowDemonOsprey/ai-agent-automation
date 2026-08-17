@@ -92,6 +92,20 @@ class MetricsCollector:
             flags=re.IGNORECASE,
         )
 
+        path = re.sub(
+            r"/sessions/[a-z0-9_-]+",
+            "/sessions/{id}",
+            path,
+            flags=re.IGNORECASE,
+        )
+
+        path = re.sub(
+            r"/documents/[a-z0-9_-]+",
+            "/documents/{id}",
+            path,
+            flags=re.IGNORECASE,
+        )
+
         path = re.sub(r"/\d+", "/{n}", path)
 
         return path

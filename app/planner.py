@@ -144,10 +144,11 @@ class AgentPlanner:
             for word in [
                 "calculate",
                 "multiply",
-                "times",
                 "plus",
                 "minus",
             ]
+        ) or re.search(
+            r"\d\s+times\b", text
         ) or any(
             phrase in text
             for phrase in [

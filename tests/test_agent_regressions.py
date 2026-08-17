@@ -271,3 +271,144 @@ def test_calculator_float_factorial_error():
     result = calculator("2.5!")
 
     assert "error" in result
+
+
+# ── Planner false-positive regression tests ──────────────────────
+
+def _fresh_planner():
+    from app.planner import AgentPlanner
+
+    return AgentPlanner()
+
+
+def test_planner_model_not_misrouted():
+    p = _fresh_planner()
+    assert p.decide("what does this model do")["action"] == "llm"
+
+
+def test_planner_modest_not_misrouted():
+    p = _fresh_planner()
+    assert p.decide("that was a modest proposal")["action"] == "llm"
+
+
+def test_planner_modify_not_misrouted():
+    p = _fresh_planner()
+    assert p.decide("we need to modify the code")["action"] == "llm"
+
+
+def test_planner_remove_not_misrouted():
+    p = _fresh_planner()
+    assert p.decide("remove this item")["action"] == "llm"
+
+
+def test_planner_meaning_not_misrouted():
+    p = _fresh_planner()
+    assert p.decide("the meaning of life")["action"] == "llm"
+
+
+def test_planner_minimal_not_misrouted():
+    p = _fresh_planner()
+    assert p.decide("this is a minimum viable product")["action"] == "llm"
+
+
+def test_planner_administer_not_misrouted():
+    p = _fresh_planner()
+    assert p.decide("please administer the test")["action"] == "llm"
+
+
+def test_planner_assumption_not_misrouted():
+    p = _fresh_planner()
+    assert p.decide("the assumption of risk")["action"] == "llm"
+
+
+# ── Metrics path normalization tests ─────────────────────────────
+
+def test_metrics_normalizes_session_paths():
+    from app.middleware import MetricsCollector
+
+    mc = MetricsCollector()
+    mc.record("GET", "/api/v1/sessions/abc-1234", 200, 0.01)
+    mc.record("GET", "/api/v1/sessions/def-5678", 200, 0.01)
+    snap = mc.snapshot()
+
+    assert len(snap["by_path"]) == 1
+    assert snap["total_requests"] == 2
+
+
+def test_metrics_normalizes_document_paths():
+    from app.middleware import MetricsCollector
+
+    mc = MetricsCollector()
+    mc.record("GET", "/api/v1/knowledge/documents/uuid1", 200, 0.01)
+    mc.record("GET", "/api/v1/knowledge/documents/uuid2", 200, 0.01)
+    snap = mc.snapshot()
+
+    assert len(snap["by_path"]) == 1
+
+
+def test_metrics_preserves_static_paths():
+    from app.middleware import MetricsCollector
+
+    mc = MetricsCollector()
+    mc.record("GET", "/api/v1/sessions", 200, 0.01)
+    mc.record("GET", "/health", 200, 0.01)
+    mc.record("GET", "/metrics", 200, 0.01)
+    snap = mc.snapshot()
+
+    assert len(snap["by_path"]) == 3
+
+
+# ── Error handler security test ──────────────────────────────────
+
+def test_error_handler_does_not_leak_details():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    test_client = TestClient(
+        app,
+        raise_server_exceptions=False,
+    )
+
+    @app.get("/test-internal-error")
+    def boom():
+        raise Exception("secret_db_password_123")
+
+    response = test_client.get("/test-internal-error")
+    body = response.json()
+
+    assert response.status_code == 500
+    assert "secret_db_password" not in body.get("message", "")
+    assert "internal error" in body["message"].lower()
+
+
+# ── API key uses constant-time comparison ─────────────────────────
+
+def test_security_module_uses_hmac():
+    import app.core.security as sec
+
+    source_lines = open(sec.__file__).read()
+    assert "hmac.compare_digest" in source_lines
+
+
+# ── top_k validation ─────────────────────────────────────────────
+
+def test_top_k_must_be_positive():
+    from pydantic import ValidationError
+
+    from app.models.request import KnowledgeSearchRequest
+
+    try:
+        KnowledgeSearchRequest(query="test", top_k=0)
+        assert False, "Should have raised"
+    except ValidationError:
+        pass
+
+    try:
+        KnowledgeSearchRequest(query="test", top_k=-1)
+        assert False, "Should have raised"
+    except ValidationError:
+        pass
+
+    r = KnowledgeSearchRequest(query="test", top_k=5)
+    assert r.top_k == 5
