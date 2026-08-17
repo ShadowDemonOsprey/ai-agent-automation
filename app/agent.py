@@ -153,6 +153,13 @@ class AIAgent:
         expression = expression.replace("to the power of", "**")
         expression = expression.replace("power of", "**")
 
+        # "divide X by Y" -> "X / Y".
+        expression = re.sub(
+            r"divide\s+(\S+)\s+by\s+(\S+)",
+            r"\1/\2",
+            expression,
+        )
+
         # Multiplication shorthand "x" between numbers.
         # A plain replacement of "x" would corrupt words,
         # so it only applies between digits: "6x7" -> "6*7".

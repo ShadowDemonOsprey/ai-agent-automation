@@ -412,3 +412,122 @@ def test_top_k_must_be_positive():
 
     r = KnowledgeSearchRequest(query="test", top_k=5)
     assert r.top_k == 5
+
+
+# ── Statistics thousands-separator regression tests ──────────────
+
+def test_statistics_comma_thousands():
+    result = statistics("sum of 1,000 2,000 3,000")
+    assert result["count"] == 3
+    assert result["sum"] == 6000
+
+
+def test_statistics_comma_large_number():
+    result = statistics("mean of 1,234 5,678")
+    assert result["count"] == 2
+    assert result["mean"] == 3456
+
+
+def test_statistics_single_comma_number():
+    result = statistics("sum of 1,234,567")
+    assert result["count"] == 1
+    assert result["sum"] == 1234567
+
+
+# ── Planner date/time routing regressions ────────────────────────
+
+def test_planner_whats_the_time():
+    p = _fresh_planner()
+    assert p.decide("what's the time")["action"] == "tool"
+    assert p.decide("what's the time")["tool"] == "date_time"
+
+
+def test_planner_tell_me_the_time():
+    p = _fresh_planner()
+    assert p.decide("tell me the time")["tool"] == "date_time"
+
+
+def test_planner_what_day_is_it():
+    p = _fresh_planner()
+    assert p.decide("what day is it")["tool"] == "date_time"
+
+
+def test_planner_what_is_today():
+    p = _fresh_planner()
+    assert p.decide("what is today")["tool"] == "date_time"
+
+
+# ── Planner calculator routing regressions ───────────────────────
+
+def test_planner_divide_routes_calculator():
+    p = _fresh_planner()
+    assert p.decide("divide 10 by 3")["tool"] == "calculator"
+
+
+def test_planner_multiplied_by_routes_calculator():
+    p = _fresh_planner()
+    assert p.decide("2 multiplied by 3")["tool"] == "calculator"
+
+
+def test_planner_divided_by_routes_calculator():
+    p = _fresh_planner()
+    assert p.decide("10 divided by 2")["tool"] == "calculator"
+
+
+def test_planner_squared_routes_calculator():
+    p = _fresh_planner()
+    assert p.decide("what is 3 squared")["tool"] == "calculator"
+
+
+def test_planner_cubed_routes_calculator():
+    p = _fresh_planner()
+    assert p.decide("what is 2 cubed")["tool"] == "calculator"
+
+
+def test_planner_6x7_routes_calculator():
+    p = _fresh_planner()
+    assert p.decide("what is 6x7")["tool"] == "calculator"
+
+
+# ── Agent divide/squared/cubed integration ───────────────────────
+
+def test_agent_divide_by():
+    agent = _fresh_agent()
+    result = agent.run("divide 10 by 3")
+    assert result.tool_used == "calculator"
+    assert result.tool_result["result"] == pytest.approx(3.333333, rel=1e-4)
+
+
+def test_agent_multiplied_by():
+    agent = _fresh_agent()
+    result = agent.run("What is 2 multiplied by 3?")
+    assert result.tool_used == "calculator"
+    assert result.tool_result["result"] == 6
+
+
+def test_agent_divided_by():
+    agent = _fresh_agent()
+    result = agent.run("What is 10 divided by 2?")
+    assert result.tool_used == "calculator"
+    assert result.tool_result["result"] == 5
+
+
+def test_agent_squared():
+    agent = _fresh_agent()
+    result = agent.run("What is 3 squared?")
+    assert result.tool_used == "calculator"
+    assert result.tool_result["result"] == 9
+
+
+def test_agent_cubed():
+    agent = _fresh_agent()
+    result = agent.run("What is 2 cubed?")
+    assert result.tool_used == "calculator"
+    assert result.tool_result["result"] == 8
+
+
+def test_agent_6x7():
+    agent = _fresh_agent()
+    result = agent.run("What is 6x7?")
+    assert result.tool_used == "calculator"
+    assert result.tool_result["result"] == 42

@@ -29,6 +29,12 @@ def _parse_numbers(text: str) -> list[float]:
     Extract every number from the input text.
     """
 
+    text = re.sub(
+        r"(?<=\d),(?=\d{3}(?!\d))",
+        "",
+        text,
+    )
+
     matches = re.findall(
         r"-?\d+(?:\.\d+)?",
         text

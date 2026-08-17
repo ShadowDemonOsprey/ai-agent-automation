@@ -77,10 +77,14 @@ class AgentPlanner:
                 phrase in text
                 for phrase in [
                     "what time",
+                    "the time",
                     "current time",
                     "what date",
+                    "the date",
+                    "what day",
                     "today's date",
                     "today is",
+                    "what is today",
                     " add ",
                     " subtract ",
                     "days between",
@@ -95,6 +99,12 @@ class AgentPlanner:
                 and any(word in text for word in [
                     "what", "current", "today", "add",
                     "subtract", "between"
+                ])
+            )
+            or (
+                " time" in text
+                and any(word in text for word in [
+                    "what", "current", "the"
                 ])
             )
         ):
@@ -144,6 +154,9 @@ class AgentPlanner:
             for word in [
                 "calculate",
                 "multiply",
+                "multiplied",
+                "divide",
+                "divided",
                 "plus",
                 "minus",
             ]
@@ -192,12 +205,18 @@ class AgentPlanner:
                 "cos(",
                 "tan(",
                 "factorial",
+                "squared",
+                "cubed",
             ]
         ):
             return True
 
         # Bare arithmetic between numbers.
         if re.search(r"\d+\s*[\+\-\*/\^]\s*\d+", text):
+            return True
+
+        # Multiplication shorthand: "6x7" or "6×7".
+        if re.search(r"\d\s*[x×]\s*\d", text):
             return True
 
         return False
