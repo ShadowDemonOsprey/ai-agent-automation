@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,8 +20,26 @@ class Settings(BaseSettings):
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "tinyllama"
 
+    # When True the agent falls back to a deterministic
+    # local response generator when Ollama is offline.
+    # This keeps the platform usable and tests green
+    # without a running LLM server.
+    ENABLE_OFFLINE_FALLBACK: bool = True
+
     # Database connection
     DATABASE_URL: str = "sqlite+aiosqlite:///./ai_agent.db"
+
+    # Security
+    # When set, all /api/v1 endpoints require this key
+    # in the "X-API-Key" header. Empty disables auth.
+    API_KEY: Optional[str] = None
+
+    # RAG vector store configuration
+    VECTOR_STORE_PATH: str = "data/chroma"
+    EMBEDDING_DIMENSION: int = 384
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 200
+    RAG_TOP_K: int = 3
 
 
     # Pydantic v2 configuration.

@@ -16,23 +16,8 @@ Features:
 import json
 import logging
 import sys
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
-
-# ============================================================
-# ADDED:
-# JSON formatter.
-#
-# Converts normal log records into JSON format
-# for production log systems.
-#
-# Example output:
-# {
-#   "timestamp": "...",
-#   "level": "INFO",
-#   "message": "Agent started"
-# }
-# ============================================================
 
 class JSONFormatter(logging.Formatter):
     """
@@ -40,7 +25,7 @@ class JSONFormatter(logging.Formatter):
     """
 
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         """
         Convert a log record into JSON.
 
@@ -50,6 +35,7 @@ class JSONFormatter(logging.Formatter):
         - message
         - logger name
         - exception information
+        - request id (when attached by middleware)
         """
 
         log_data = {
@@ -63,89 +49,29 @@ class JSONFormatter(logging.Formatter):
                 None
             ),
         }
-        
-        # ====================================================
-        # ADDED:
-        # Exception tracking.
-        #
-        # Adds traceback information
-        # when logger.exception() is used.
-        # ====================================================
 
         if record.exc_info:
+
             log_data["exception"] = self.formatException(
                 record.exc_info
             )
 
-        if hasattr(record, "request_id"):
-            log_data["request_id"] = record.request_id
-
         return json.dumps(log_data)
 
 
-
-# ============================================================
 # Application logger creation.
-# ============================================================
+logger = logging.getLogger("ai-agent")
 
-logger = logging.getLogger(
-    "ai-agent"
-)
+logger.setLevel(logging.INFO)
 
+handler = logging.StreamHandler(sys.stdout)
 
+handler.setFormatter(JSONFormatter())
 
-# ============================================================
-# Logging level.
-#
-# INFO:
-# Normal application events.
-#
-# ============================================================
-
-logger.setLevel(
-    logging.INFO
-)
-
-
-
-# ============================================================
-# ADDED:
-# JSON console handler.
-#
-# Production systems usually send
-# stdout logs to:
-# - Docker
-# - Kubernetes
-# - Cloud logging systems
-# ============================================================
-
-handler = logging.StreamHandler(
-    sys.stdout
-)
-
-
-handler.setFormatter(
-    JSONFormatter()
-)
-
-
-
-# ============================================================
-# Prevent duplicate handlers.
-# ============================================================
-
+# Prevent duplicate handlers when modules are reloaded.
 if not logger.handlers:
 
-    logger.addHandler(
-        handler
-    )
+    logger.addHandler(handler)
 
-
-
-# ============================================================
-# ADDED:
-# Prevent logs from propagating
-# to the root logger.
-# ============================================================
-
+# Prevent logs from propagating to the root logger.
 logger.propagate = False

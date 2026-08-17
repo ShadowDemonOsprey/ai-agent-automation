@@ -11,7 +11,6 @@ This verifies:
 from app.models.agent_state import AgentState
 
 
-
 def test_agent_state_creation():
     """
     Test creating a complete agent state.

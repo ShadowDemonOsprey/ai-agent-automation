@@ -7,28 +7,113 @@ Tracks:
 - Response status code
 - Processing time
 - Request ID
+
+Also collects lightweight monitoring metrics
+exposed at GET /metrics.
 """
 
 
-# ============================================================
-# ADDED:
-# uuid generates unique request identifiers.
-# ============================================================
-
 import time
 import uuid
-
+from collections import defaultdict
+from typing import Awaitable, Callable
 
 from fastapi import Request
-
+from starlette.responses import Response
 
 from app.logger import logger
+
+
+class MetricsCollector:
+    """
+    In-memory request metrics.
+    """
+
+
+    def __init__(self):
+        """
+        Initialize metric counters.
+        """
+
+        self.total_requests = 0
+
+        self.total_errors = 0
+
+        self.total_latency = 0.0
+
+        self.by_method = defaultdict(int)
+
+        self.by_path = defaultdict(int)
+
+        self.by_status = defaultdict(int)
+
+
+
+    def record(
+        self,
+        method: str,
+        path: str,
+        status_code: int,
+        latency: float
+    ) -> None:
+        """
+        Record one completed request.
+        """
+
+        self.total_requests += 1
+
+        self.total_latency += latency
+
+        self.by_method[method] += 1
+
+        self.by_path[path] += 1
+
+        self.by_status[status_code] += 1
+
+        if status_code >= 500:
+
+            self.total_errors += 1
+
+
+
+    def snapshot(self) -> dict:
+        """
+        Return a metrics dictionary.
+        """
+
+        average_latency = (
+            self.total_latency / self.total_requests
+            if self.total_requests else 0.0
+        )
+
+        return {
+            "total_requests": self.total_requests,
+            "total_errors": self.total_errors,
+            "error_rate": round(
+                self.total_errors / self.total_requests,
+                4
+            ) if self.total_requests else 0.0,
+            "average_latency_ms": round(
+                average_latency * 1000,
+                2
+            ),
+            "by_method": dict(self.by_method),
+            "by_path": dict(self.by_path),
+            "by_status": {
+                str(code): count
+                for code, count in self.by_status.items()
+            },
+        }
+
+
+
+metrics = MetricsCollector()
 
 
 
 async def log_requests(
     request: Request,
-    call_next
+    call_next: Callable[[Request], Awaitable[Response]]
 ):
     """
     Log every incoming API request.
@@ -48,36 +133,9 @@ async def log_requests(
             API response.
     """
 
-
-
-    # ========================================================
-    # ADDED:
-    # Generate unique ID for this request.
-    #
-    # Example:
-    # 8f3c2b7e-....
-    #
-    # This allows tracing one request
-    # through multiple services later.
-    # ========================================================
-
-    request_id = str(
-        uuid.uuid4()
-    )
-
-
+    request_id = str(uuid.uuid4())
 
     start_time = time.time()
-
-
-
-    # ========================================================
-    # ADDED:
-    # Attach request_id to logger record.
-    #
-    # logger.py reads this value:
-    # record.request_id
-    # ========================================================
 
     logger.info(
         "Incoming request",
@@ -86,25 +144,14 @@ async def log_requests(
         }
     )
 
-
-
     response = await call_next(
         request
     )
-
-
 
     process_time = (
         time.time()
         - start_time
     )
-
-
-
-    # ========================================================
-    # CHANGED:
-    # Structured logging instead of string formatting.
-    # ========================================================
 
     logger.info(
         "Completed request",
@@ -113,20 +160,15 @@ async def log_requests(
         }
     )
 
+    # Record monitoring metrics.
+    metrics.record(
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        latency=process_time,
+    )
 
-
-    # ========================================================
-    # ADDED:
     # Return request ID in response headers.
-    #
-    # Useful for:
-    # - debugging
-    # - tracing errors
-    # - production monitoring
-    # ========================================================
-
     response.headers["X-Request-ID"] = request_id
-
-
 
     return response

@@ -1,35 +1,89 @@
+"""
+Database session management.
+
+Provides:
+- Async SQLAlchemy session factory
+- Sync SQLAlchemy session factory
+- FastAPI database dependency
+
+Flow:
+
+FastAPI Request
+      |
+      v
+get_session()
+      |
+      v
+AsyncSession
+      |
+      v
+Database Operations
+"""
+
+
 from collections.abc import AsyncGenerator
+from contextlib import contextmanager
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+)
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.database.connection import engine
+from app.database.connection import async_engine, sync_engine
 
-
-# Creates a reusable async database session factory.
-# The application will use this factory whenever it needs database access.
+# Creates reusable async database sessions.
+#
+# Every API request that needs database access
+# receives a separate AsyncSession instance.
 async_session_factory = async_sessionmaker(
-    # Connects sessions to the configured async database engine.
-    bind=engine,
-
-    # Uses SQLAlchemy asynchronous sessions.
+    bind=async_engine,
     class_=AsyncSession,
-
-    # Keeps ORM objects usable after committing changes.
     expire_on_commit=False,
 )
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+# Creates reusable sync database sessions.
+#
+# Used by the AI agent and its tools, which run
+# synchronously outside the FastAPI request cycle.
+sync_session_factory = sessionmaker(
+    bind=sync_engine,
+    class_=Session,
+    expire_on_commit=False,
+)
+
+
+@contextmanager
+def get_sync_session():
     """
-    FastAPI dependency that provides a database session.
+    Synchronous database session context manager.
 
-    A new session is created for each request.
-    The session is automatically closed after the request finishes.
+    Used by repositories that run outside
+    the FastAPI async request cycle.
     """
 
-    # Opens a database session from the factory.
-    async with async_session_factory() as session:
+    session = sync_session_factory()
 
-        # Provides the session to the API endpoint/service.
+    try:
+
         yield session
 
+    finally:
+
+        session.close()
+
+
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    FastAPI dependency.
+
+    Creates a database session,
+    provides it to API endpoints,
+    and closes it automatically.
+    """
+
+    async with async_session_factory() as session:
+
+        yield session

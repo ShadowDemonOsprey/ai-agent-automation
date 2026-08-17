@@ -10,7 +10,6 @@ This verifies:
 from app.planner import AgentPlanner
 
 
-
 def test_planner_detects_calculator():
     """
     Test calculator tool detection.

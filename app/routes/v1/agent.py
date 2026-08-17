@@ -8,13 +8,13 @@ Provides:
 Flow:
 
 Client
-  ↓
+  |
 FastAPI Route
-  ↓
+  |
 Agent Service
-  ↓
+  |
 AI Agent
-  ↓
+  |
 Ollama LLM
 """
 
@@ -22,18 +22,18 @@ Ollama LLM
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from app.agent import agent
+from app.core.security import require_api_key
+from app.dependencies.services import get_agent_service
+from app.logger import logger
 from app.models.request import AgentRequest
 from app.models.response import AgentResponse
 from app.services.agent_service import AgentService
-from app.dependencies.services import get_agent_service
-from app.agent import agent
-from app.logger import logger
-
-
 
 router = APIRouter(
     prefix="/api/v1",
-    tags=["Agent"]
+    tags=["Agent"],
+    dependencies=[Depends(require_api_key)],
 )
 
 
@@ -51,7 +51,8 @@ def run_agent(
     """
 
     result = service.run(
-        request.message
+        request.message,
+        session_id=request.session_id
     )
 
     return result
@@ -62,7 +63,8 @@ def run_agent(
     "/chat/stream"
 )
 def stream_chat(
-    message: str
+    message: str,
+    session_id: str | None = None
 ):
     """
     Stream AI responses using Server Sent Events.
@@ -91,7 +93,10 @@ def stream_chat(
 
         try:
 
-            for chunk in agent.stream_run(message):
+            for chunk in agent.stream_run(
+                message,
+                session_id=session_id
+            ):
 
                 yield (
                     f"data: {chunk}\n\n"

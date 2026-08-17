@@ -12,7 +12,6 @@ from app.agent import AIAgent
 from app.memory import memory
 
 
-
 def test_agent_uses_planner_for_tools():
     """
     Test that calculator requests

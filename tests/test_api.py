@@ -12,8 +12,6 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-
-
 # Create a test client.
 # This simulates HTTP requests
 # without running a real server.

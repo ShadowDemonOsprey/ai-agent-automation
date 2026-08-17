@@ -4,8 +4,31 @@
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
 
 # Virtual environments
 .venv/
 venv/
+.envs/
 
+# Test artifacts
+.pytest_cache/
+coverage.xml
+htmlcov/
+
+# Local databases and data
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Chroma vector store
+data/chroma/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/

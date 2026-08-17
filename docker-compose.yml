@@ -1,0 +1,37 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-agent-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: ai-agent-app
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=tinyllama
+      - DATABASE_URL=sqlite+aiosqlite:////app/ai_agent.db
+      - VECTOR_STORE_PATH=/app/data/chroma
+      - API_KEY=${API_KEY:-}
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+    command: >
+      sh -c "ollama pull tinyllama --host http://ollama:11434 2>/dev/null || true;
+      uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  ollama_data:
+  app_data:

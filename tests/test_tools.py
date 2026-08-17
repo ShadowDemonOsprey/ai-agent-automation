@@ -10,7 +10,6 @@ This verifies:
 from app.tools import calculator
 
 
-
 def test_calculator_tool():
     """
     Test the calculator tool.

@@ -11,9 +11,9 @@ Using Pydantic models gives:
 """
 
 
-from typing import Optional, List, Dict
-from pydantic import BaseModel
+from typing import Any, Optional
 
+from pydantic import BaseModel, Field
 
 
 class AgentState(BaseModel):
@@ -34,7 +34,7 @@ class AgentState(BaseModel):
     """
 
 
-    plan: Optional[Dict] = None
+    plan: Optional[dict[str, Any]] = None
     """
     Planner decision.
 
@@ -52,13 +52,21 @@ class AgentState(BaseModel):
     """
 
 
-    tool_result: Optional[Dict] = None
+    tool_result: Optional[dict[str, Any]] = None
     """
     Result returned by a tool.
     """
 
 
-    memory: List[Dict]
+    memory: list[dict[str, Any]] = Field(
+        default_factory=list
+    )
     """
     Conversation history.
+    """
+
+
+    session_id: Optional[str] = None
+    """
+    Conversation session associated with this execution.
     """

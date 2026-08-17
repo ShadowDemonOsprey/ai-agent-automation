@@ -9,7 +9,6 @@ import logging
 from app.logger import JSONFormatter
 
 
-
 def test_json_formatter_output():
     """
     Verify that log records are converted

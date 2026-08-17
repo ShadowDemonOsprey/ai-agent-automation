@@ -1,21 +1,74 @@
 """
 Ollama client module.
 
-This module provides communication
-between the AI agent and local Ollama LLM.
+This module provides communication between the AI agent
+and the local Ollama LLM.
 
 The client supports:
 - Normal full-response generation
 - Streaming token-by-token generation
+- Offline fallback when Ollama is not running
 
 It acts as the bridge between the AI agent
 and the local Ollama model.
 """
 
 
+from collections.abc import Iterator
+
 import ollama
 
 from app.core.config import settings
+from app.logger import logger
+
+
+class LocalFallbackModel:
+    """
+    Deterministic offline response generator.
+
+    Used when Ollama is unreachable so the platform and
+    the test suite keep working without a local LLM.
+    """
+
+
+    def generate(self, prompt: str) -> str:
+        """
+        Produce a helpful offline response.
+        """
+
+        request = prompt.strip()
+
+        if "User request:" in request:
+
+            request = request.split(
+                "User request:",
+                1
+            )[1].strip()
+
+        request_preview = (
+            request[:80] + "..."
+            if len(request) > 80 else request
+        )
+
+        return (
+            "I am running in offline fallback mode because "
+            "the local Ollama model is not connected. "
+            f"About your request \"{request_preview}\": "
+            "start Ollama to get full language model "
+            "answers. Math, statistics, date/time and "
+            "knowledge tools work offline."
+        )
+
+
+
+    def stream(self, prompt: str) -> Iterator[str]:
+        """
+        Yield the offline response token by token.
+        """
+
+        for token in self.generate(prompt).split():
+
+            yield token + " "
 
 
 
@@ -27,6 +80,7 @@ class OllamaClient:
     - Sending prompts to Ollama
     - Receiving complete responses
     - Streaming partial responses
+    - Falling back offline when Ollama is unavailable
     """
 
 
@@ -37,10 +91,17 @@ class OllamaClient:
         Stores:
         - Ollama server configuration
         - Selected LLM model name
+        - Offline fallback model
         """
 
         self.host = settings.ollama_host
         self.model = settings.ollama_model
+        self.fallback = LocalFallbackModel()
+
+        self._client = ollama.Client(
+            host=self.host,
+            timeout=8
+        )
 
 
 
@@ -48,8 +109,8 @@ class OllamaClient:
         """
         Generate a complete text response using Ollama.
 
-        This keeps the original non-streaming behavior
-        used by the existing agent pipeline.
+        Falls back to the offline model when the server
+        is unreachable.
 
         Args:
             prompt (str):
@@ -60,21 +121,35 @@ class OllamaClient:
                 Complete generated response.
         """
 
-        response = ollama.chat(
-            model=self.model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
+        try:
 
-        return response["message"]["content"]
+            response = self._client.chat(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+
+            return response["message"]["content"]
+
+        except Exception as error:
+
+            if not settings.ENABLE_OFFLINE_FALLBACK:
+                raise
+
+            logger.warning(
+                f"Ollama unavailable ({error}); "
+                "using offline fallback model"
+            )
+
+            return self.fallback.generate(prompt)
 
 
 
-    def stream_generate(self, prompt: str):
+    def stream_generate(self, prompt: str) -> Iterator[str]:
         """
         Generate a streaming response from Ollama.
 
@@ -96,7 +171,8 @@ class OllamaClient:
         """
 
         try:
-            response_stream = ollama.chat(
+
+            response_stream = self._client.chat(
                 model=self.model,
                 messages=[
                     {
@@ -108,23 +184,29 @@ class OllamaClient:
             )
 
             for chunk in response_stream:
+
                 message = chunk.get("message", {})
 
                 content = message.get("content", "")
 
                 if content:
+
                     yield content
 
         except Exception as error:
-            """
-            Convert Ollama failures into a controlled
-            agent-level error message.
 
-            This prevents API crashes and allows
-            upper layers to handle failures safely.
-            """
+            if not settings.ENABLE_OFFLINE_FALLBACK:
 
-            yield f"[LLM streaming error: {str(error)}]"
+                yield f"[LLM streaming error: {str(error)}]"
+
+                return
+
+            logger.warning(
+                f"Ollama streaming unavailable ({error}); "
+                "using offline fallback model"
+            )
+
+            yield from self.fallback.stream(prompt)
 
 
 

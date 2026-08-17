@@ -7,7 +7,7 @@ AI agent business logic.
 
 
 from app.agent import agent
-
+from app.models.agent_state import AgentState
 
 
 class AgentService:
@@ -19,25 +19,28 @@ class AgentService:
 
     def run(
         self,
-        message: str
-    ):
+        message: str,
+        session_id: str | None = None
+    ) -> AgentState:
         """
         Execute the AI agent.
 
         Args:
             message:
                 User input.
+            session_id:
+                Optional conversation session for
+                persistent memory.
 
         Returns:
             Agent response.
         """
 
-
         return agent.run(
-            message
+            message,
+            session_id=session_id
         )
 
 
 
 agent_service = AgentService()
-

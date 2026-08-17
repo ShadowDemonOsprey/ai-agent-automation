@@ -12,8 +12,6 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-
-
 client = TestClient(app)
 
 
@@ -50,7 +48,7 @@ def test_streaming_returns_chunks(monkeypatch):
     """
 
 
-    def fake_stream_run(message: str):
+    def fake_stream_run(message: str, session_id=None):
         yield "Hello"
         yield " world"
 
@@ -84,7 +82,7 @@ def test_streaming_error_handling(monkeypatch):
     """
 
 
-    def fake_error_stream(message: str):
+    def fake_error_stream(message: str, session_id=None):
         raise Exception("Test error")
 
         yield "never"

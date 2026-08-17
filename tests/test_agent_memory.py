@@ -12,7 +12,6 @@ from app.agent import AIAgent
 from app.memory import memory
 
 
-
 def test_agent_remembers_context():
     """
     Test that the agent keeps conversation context.

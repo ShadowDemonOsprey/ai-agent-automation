@@ -1,0 +1,12 @@
+[tool.ruff]
+# Target Python version and style baseline.
+target-version = "py313"
+line-length = 100
+extend-exclude = ["data", ".venv", ".pytest_cache"]
+
+[tool.ruff.lint]
+# Curated rule set:
+#   E4/E7/E9  - pycodestyle errors (imports, statements, syntax)
+#   F         - pyflakes (unused imports, undefined names)
+#   I         - isort (import ordering)
+select = ["E4", "E7", "E9", "F", "I"]

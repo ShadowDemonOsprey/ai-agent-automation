@@ -9,7 +9,6 @@ returned by the API.
 from pydantic import BaseModel
 
 
-
 class ErrorResponse(BaseModel):
     """
     Standard API error response.
