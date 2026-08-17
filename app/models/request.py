@@ -8,7 +8,7 @@ received by FastAPI endpoints.
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AgentRequest(BaseModel):
@@ -16,7 +16,11 @@ class AgentRequest(BaseModel):
     Request model for AI agent input.
     """
 
-    message: str
+    message: str = Field(
+        ..., min_length=1,
+        description="Non-empty user message.",
+        examples=["What is 6 times 7?"],
+    )
     """
     User message sent to the AI agent.
     """
