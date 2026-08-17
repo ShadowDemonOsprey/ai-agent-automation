@@ -486,7 +486,7 @@ class AIAgent:
 
         prompt = self._build_prompt(
             user_input,
-            history
+            history[:-1]
         )
 
         response = ollama_client.generate(prompt)
@@ -591,7 +591,7 @@ class AIAgent:
 
         prompt = self._build_prompt(
             user_input,
-            history
+            history[:-1]
         )
 
         complete_response = ""

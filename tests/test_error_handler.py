@@ -45,4 +45,4 @@ def test_error_response_format():
 
     assert data["error"] == "Agent execution failed"
 
-    assert data["message"] == "Test failure"
+    assert "internal error" in data["message"].lower()

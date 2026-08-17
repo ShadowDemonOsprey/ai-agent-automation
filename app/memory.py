@@ -108,6 +108,8 @@ class ConversationMemory:
                 content
             )
 
+            self.messages = self.messages[-2:]
+
 
 
     def get_history(self) -> list[dict]:
@@ -135,6 +137,12 @@ class ConversationMemory:
         """
 
         self.messages = []
+
+        if self.persistent and self.session_id:
+
+            message_repository.delete_for_session(
+                self.session_id
+            )
 
 
 

@@ -13,6 +13,7 @@ exposed at GET /metrics.
 """
 
 
+import re
 import time
 import uuid
 from collections import defaultdict
@@ -66,13 +67,34 @@ class MetricsCollector:
 
         self.by_method[method] += 1
 
-        self.by_path[path] += 1
+        normalized = self._normalize_path(path)
+        self.by_path[normalized] += 1
 
         self.by_status[status_code] += 1
 
         if status_code >= 500:
 
             self.total_errors += 1
+
+
+    @staticmethod
+    def _normalize_path(path: str) -> str:
+        """
+        Replace dynamic path segments with placeholders
+        to prevent unbounded cardinality.
+        """
+
+        path = re.sub(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}"
+            r"-[0-9a-f]{4}-[0-9a-f]{12}",
+            "{id}",
+            path,
+            flags=re.IGNORECASE,
+        )
+
+        path = re.sub(r"/\d+", "/{n}", path)
+
+        return path
 
 
 

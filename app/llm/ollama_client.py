@@ -133,7 +133,9 @@ class OllamaClient:
                 ]
             )
 
-            return response["message"]["content"]
+            return (
+                response.get("message", {}).get("content", "")
+            )
 
         except Exception as error:
 

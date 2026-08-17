@@ -84,7 +84,10 @@ class KnowledgeSearchRequest(BaseModel):
     Search query.
     """
 
-    top_k: int = 3
+    top_k: int = Field(
+        default=3, gt=0,
+        description="Number of results to return.",
+    )
     """
     Number of results to return.
     """

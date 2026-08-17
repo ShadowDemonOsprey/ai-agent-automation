@@ -47,19 +47,23 @@ class AgentPlanner:
         # Statistics before calculator: statistic
         # questions contain numbers but no operators.
         if any(
-            word in text
+            re.search(rf"\b{re.escape(word)}\b", text)
             for word in [
                 "mean",
                 "median",
                 "average",
-                "standard deviation",
-                "stddev",
-                "variance",
                 "mode",
                 "sum of",
                 "total of",
                 "statistics",
                 "quartile",
+            ]
+        ) or any(
+            phrase in text
+            for phrase in [
+                "standard deviation",
+                "stddev",
+                "variance",
             ]
         ):
             return {
@@ -136,24 +140,28 @@ class AgentPlanner:
         # If the request looks like mathematics,
         # choose the calculator tool.
         if any(
-            word in text
+            re.search(rf"\b{re.escape(word)}\b", text)
             for word in [
                 "calculate",
                 "multiply",
                 "times",
                 "plus",
                 "minus",
+            ]
+        ) or any(
+            phrase in text
+            for phrase in [
                 "divided by",
                 "power of",
                 "square root",
                 "cube root",
                 "cbrt",
-                "+",
-                "-",
-                "*",
-                "/",
-                "=",
             ]
+        ) or any(
+            op in text
+            for op in ["+", "-", "*", "/"]
+        ) or (
+            "=" in text and "==" not in text and "!=" not in text
         ) or self._looks_like_math(text):
             return {
                 "action": "tool",

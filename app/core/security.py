@@ -10,6 +10,7 @@ requests are allowed (development mode).
 """
 
 
+import hmac
 from typing import Optional
 
 from fastapi import Header, HTTPException
@@ -34,7 +35,9 @@ def require_api_key(
         HTTPException 401 if the key is missing/invalid.
     """
 
-    if settings.API_KEY and x_api_key != settings.API_KEY:
+    if settings.API_KEY and not hmac.compare_digest(
+        x_api_key or "", settings.API_KEY
+    ):
 
         raise HTTPException(
             status_code=401,

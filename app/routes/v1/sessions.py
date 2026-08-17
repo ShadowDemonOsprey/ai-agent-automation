@@ -178,13 +178,13 @@ async def delete_session(
         db
     )
 
-    await db.delete(session)
-
-    await db.commit()
-
     message_repository.delete_for_session(session_id)
 
     memory_repository.delete_for_session(session_id)
+
+    await db.delete(session)
+
+    await db.commit()
 
     return {
         "message": "Session deleted",

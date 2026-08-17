@@ -27,6 +27,7 @@ from starlette.responses import Response
 from app.core.constants import API_VERSION
 from app.core.lifespan import lifespan
 from app.docs.api_docs import API_DESCRIPTION, TAGS_METADATA
+from app.logger import logger
 from app.middleware import log_requests, metrics
 from app.models.error import ErrorResponse
 from app.routes.v1.agent import router
@@ -112,9 +113,15 @@ async def global_exception_handler(
     exc: Exception
 ):
 
+    logger.error(
+        f"Unhandled exception: {exc}",
+        exc_info=True,
+    )
+
     error_response = ErrorResponse(
         error="Agent execution failed",
-        message=str(exc)
+        message="An internal error occurred. "
+                "Please try again later."
     )
 
 
