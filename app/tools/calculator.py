@@ -292,12 +292,12 @@ def _normalize(expression: str) -> str:
 
     # Root phrases: "square root of 144" and "cube root of 27".
     expression = re.sub(
-        r"square root of\s*([0-9a-z.]+)",
+        r"square root of\s*(-?[0-9a-z.]+)",
         r"sqrt(\1)",
         expression,
     )
     expression = re.sub(
-        r"cube root of\s*([0-9a-z.]+)",
+        r"cube root of\s*(-?[0-9a-z.]+)",
         r"cbrt(\1)",
         expression,
     )
@@ -317,9 +317,11 @@ def _normalize(expression: str) -> str:
     # ^ means power in calculators.
     expression = expression.replace("^", "**")
 
-    # Postfix factorial: 5! -> factorial(5)
+    # Postfix factorial: 5! -> factorial(5).
+    # The negative lookahead prevents matching "!="
+    # as factorial of the preceding number.
     expression = re.sub(
-        r"(\d+(?:\.\d+)?)\s*!",
+        r"(\d+(?:\.\d+)?)\s*!(?!=)",
         r"factorial(\1)",
         expression
     )

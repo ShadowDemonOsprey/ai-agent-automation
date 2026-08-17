@@ -244,3 +244,30 @@ def test_date_response_grammar_subtracted():
 
     assert "subtracted from today" in result.response
     assert "subtracteded" not in result.response
+
+
+def test_calculator_cube_root_negative():
+    assert calculator("cube root of -8")["result"] == -2
+
+
+def test_calculator_not_equal():
+    result = calculator("3 != 4")
+
+    assert result["result"] == 1
+
+
+def test_calculator_postfix_fact_no_corrupt_ne():
+    """5! must work but 3 != must not become factorial."""
+    assert calculator("5!")["result"] == 120
+    assert calculator("3 != 4")["result"] == 1
+
+
+def test_calculator_not_equal_various():
+    assert calculator("1 != 1")["result"] == 0
+    assert calculator("2 != 3")["result"] == 1
+
+
+def test_calculator_float_factorial_error():
+    result = calculator("2.5!")
+
+    assert "error" in result

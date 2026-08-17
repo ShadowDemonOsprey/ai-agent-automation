@@ -191,12 +191,12 @@ class AIAgent:
 
         # Phrase conversions.
         expression = re.sub(
-            r"square root of\s*([0-9a-z.]+)",
+            r"square root of\s*(-?[0-9a-z.]+)",
             r"sqrt(\1)",
             expression
         )
         expression = re.sub(
-            r"cube root of\s*([0-9a-z.]+)",
+            r"cube root of\s*(-?[0-9a-z.]+)",
             r"cbrt(\1)",
             expression
         )
